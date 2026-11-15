@@ -118,7 +118,6 @@ dsh plugin --profile web add .
 ## 从 dsh-xai 迁移
 
 - 两个插件都能读残留的 `$DSH_HOME/.xai-oauth-auth.json`。有 `~/.grok/auth.json` 时用它（和 Grok CLI 同一份）。
-- 代理设置同样继承（`$DSH_HOME/.xai-oauth-proxy.json`）。
 - **不要在同一个 profile 中同时保留两个插件。** dsh-grok-kit 只对自己的部分做了降级防护（唯一插件 id、路由/设置页守卫），旧插件后加载时仍可能拖垮 profile 启动。桌面用户先在插件管理页卸载 dsh-xai；Web 用户先运行：
   `dsh plugin --profile web remove dsh-xai`
 
@@ -130,9 +129,9 @@ dsh plugin --profile web add .
 
 `grok_imagine`（文生图）与 `grok_imagine_edit`（图生图，复用主 OAuth session）默认关闭，旧媒体开启配置不继承；需在设置页确认风险、保存并重启宿主后开启。正常使用不重复确认，详见 [媒体工具的开启与风险](README.md#媒体工具的开启与风险)。图片保存到 DSH 附件库并直接在会话图片卡片中显示；支持从卡片下载或通过宿主文件工具导出，两工具的 `save_path` 参数均不再支持直接写盘。实验性视频工具（`grok_video_generate` / `grok_video_status` / `grok_video_resume`）同样默认关闭、确认风险并重启后开启，详见 [视频任务（实验性）](README.md#视频任务实验性) 与 [VIDEO.zh.md](VIDEO.zh.md)。
 
-## 代理
+## 网络
 
-可选。在 设置 → xAI Grok → 网络页的“网络代理（仅 xAI）”里配置，或通过 dsh 环境 / config 设置 `DSH_XAI_PROXY`（例如 `http://127.0.0.1:8080`）。代理对 x.ai 与 Grok 官方额度请求生效，包括 `grok.com` 上精确的 `GetGrokCreditsConfig` 回退路径。同一 DSH 进程内其他发往这些目标的请求也可能受影响；其他路径和请求沿用原有网络设置，不强制直连。
+本 fork 不提供代理设置：xAI 请求走宿主网络（如需代理，请在宿主层统一设置 DSH 网络 / `HTTP_PROXY` 等）。
 
 ## 卸载
 

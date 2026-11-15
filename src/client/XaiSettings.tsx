@@ -21,7 +21,6 @@ const LOGIN_PATH = '/plugins/dsh-grok-kit/auth/login'
 const IMPORT_PATH = '/plugins/dsh-grok-kit/auth/import'
 const LOGOUT_PATH = '/plugins/dsh-grok-kit/auth/logout'
 const MODELS_PATH = '/plugins/dsh-grok-kit/auth/models'
-const PROXY_PATH = '/plugins/dsh-grok-kit/auth/proxy'
 const OPTIONS_PATH = '/plugins/dsh-grok-kit/auth/options'
 const POLL_INTERVAL_MS = 1_000
 const STATUS_TIMEOUT_MS = 10_000
@@ -47,9 +46,9 @@ type OptionValue = boolean | number | string | undefined
  * The five pages of this settings section. Only the active page is mounted, so
  * a backgrounded page never keeps a video download or a capability read
  * running; every draft it owns lives in this component instead of in the page
- * body, so switching pages keeps unsaved options and proxy edits.
+ * body, so switching pages keeps unsaved options.
  */
-const SETTINGS_PAGES = ['account', 'models', 'search', 'media', 'network'] as const
+const SETTINGS_PAGES = ['account', 'models', 'search', 'media'] as const
 
 type SettingsPageId = (typeof SETTINGS_PAGES)[number]
 
@@ -59,7 +58,6 @@ const PAGE_LABEL_KEYS: Record<SettingsPageId, XaiOAuthSettingsKey> = {
   models: 'navModels',
   search: 'navSearch',
   media: 'navMedia',
-  network: 'navNetwork',
 }
 
 /**
@@ -71,7 +69,6 @@ const PAGE_LABEL_KEYS: Record<SettingsPageId, XaiOAuthSettingsKey> = {
 const PAGE_OPTION_KEYS: Record<SettingsPageId, readonly OptionKey[]> = {
   account: [],
   models: [],
-  network: [],
   search: ['backendSearch', 'statefulResponses', 'nestedSearchTools', 'searchModel', 'searchMaxResults', 'webSearchTimeoutMs', 'xSearchTimeoutMs'],
   media: ['imagineTool', 'editTool', 'videoTool', 'mediaRiskAcknowledged'],
 }
@@ -116,16 +113,6 @@ type AccountStatus =
 interface LoginChallenge {
   url: string
   userCode?: string
-}
-
-/**
- * The proxy route's payload. Both fields are read defensively: an older
- * service answers without the compatibility flag, and a flag that is not a
- * real boolean (a truthy string) must never be read as "on".
- */
-interface ProxyPayload {
-  proxyUrl?: unknown
-  quotaCompatibilityMode?: unknown
 }
 
 export interface XaiOAuthSettingsInjected {
@@ -203,27 +190,6 @@ export function XaiSettings({ t }: XaiOAuthSettingsProps) {
     pending?.abort()
   }, [])
   const [busy, setBusy] = useState(false)
-  const [proxyUrl, setProxyUrl] = useState('')
-  const [savedProxyUrl, setSavedProxyUrl] = useState('')
-  // Quota request compatibility mode. Off by default, so the existing
-  // behaviour (quota requests follow the host's global fetch) is kept until
-  // the user opts in.
-  const [quotaCompatibilityMode, setQuotaCompatibilityMode] = useState(false)
-  const [savedQuotaCompatibilityMode, setSavedQuotaCompatibilityMode] = useState(false)
-  // The first read has not succeeded yet, so the effective proxy URL is
-  // unknown. Saving then could store an empty URL over a real one, so the
-  // save button stays disabled until the read lands. Editing stays allowed.
-  const [proxyLoaded, setProxyLoaded] = useState(false)
-  const [proxyLoading, setProxyLoading] = useState(false)
-  const proxyLoadingRef = useRef(false)
-  // Each field owns its edit flag: toggling the compatibility mode must not
-  // stop a late read from filling in the proxy URL the user never touched.
-  const proxyUrlEditedRef = useRef(false)
-  const quotaEditedRef = useRef(false)
-  // A committed save owns both baselines: a late read must not roll them back.
-  const proxySavedRef = useRef(false)
-  const [proxyBusy, setProxyBusy] = useState(false)
-  const [proxyFeedback, setProxyFeedback] = useState<'idle' | 'saved' | 'error' | 'loadError'>('idle')
   const [popupBlocked, setPopupBlocked] = useState(false)
   const [options, setOptions] = useState<Partial<Record<OptionKey, OptionValue>>>({})
   const [storedOptions, setStoredOptions] = useState<Partial<Record<OptionKey, OptionValue>>>({})
@@ -357,9 +323,7 @@ export function XaiSettings({ t }: XaiOAuthSettingsProps) {
   }
 
   const pageHasDraft = (pageId: SettingsPageId): boolean =>
-    pageId === 'network'
-      ? proxyUrl.trim() !== savedProxyUrl || quotaCompatibilityMode !== savedQuotaCompatibilityMode
-      : PAGE_OPTION_KEYS[pageId].some(key => optionsDirty.has(key))
+    PAGE_OPTION_KEYS[pageId].some(key => optionsDirty.has(key))
 
   /** Feedback visible on one page: its own, or a page-independent load error. */
   const feedbackFor = (pageId: SettingsPageId): 'saved' | 'error' | undefined =>
@@ -457,85 +421,6 @@ export function XaiSettings({ t }: XaiOAuthSettingsProps) {
     }
   }
 
-  /**
-   * Read the effective proxy settings.
-   *
-   * The URL and the compatibility mode have their own edit flags, so a read
-   * that arrives late still fills in the field the user has not touched
-   * (toggling the mode must not hide the proxy URL, whose empty draft would
-   * otherwise be written back over a real proxy) and never overwrites a field
-   * the user has edited or a baseline a save has already committed.
-   */
-  const loadProxy = useCallback(async () => {
-    if (proxyLoadingRef.current) return
-    proxyLoadingRef.current = true
-    setProxyLoading(true)
-    try {
-      const value = await jsonRequest<ProxyPayload>(PROXY_PATH)
-      const url = typeof value.proxyUrl === 'string' ? value.proxyUrl : ''
-      // An older service has no compatibility flag: the mode is off. A flag
-      // that is not a real boolean is not "on" either.
-      const mode = value.quotaCompatibilityMode === true
-      setProxyLoaded(true)
-      if (!proxyUrlEditedRef.current) setProxyUrl(url)
-      if (!quotaEditedRef.current) setQuotaCompatibilityMode(mode)
-      if (!proxySavedRef.current) {
-        setSavedProxyUrl(url)
-        setSavedQuotaCompatibilityMode(mode)
-      }
-      setProxyFeedback(previous => previous === 'loadError' ? 'idle' : previous)
-    } catch {
-      // Unknown settings must not be saved; retry keeps any local edits.
-      setProxyLoaded(false)
-      setProxyFeedback('loadError')
-    } finally {
-      proxyLoadingRef.current = false
-      setProxyLoading(false)
-    }
-  }, [])
-
-  /**
-   * Save the proxy URL and the compatibility mode in one request: the server
-   * needs both, and a half-saved pair would leave the page describing a
-   * state the server never stored.
-   */
-  const saveProxy = async (): Promise<void> => {
-    // A failed read leaves the effective settings unknown; writing them back
-    // would store guesses. Wait for a successful load/retry instead.
-    if (proxyFeedback === 'loadError') return
-    setProxyBusy(true)
-    try {
-      const value = await jsonRequest<ProxyPayload>(PROXY_PATH, 'POST', {
-        proxyUrl,
-        quotaCompatibilityMode,
-      })
-      const url = typeof value.proxyUrl === 'string' ? value.proxyUrl : proxyUrl
-      // A missing flag means the service did not report the mode: it stays
-      // off instead of being read as "on" from a truthy string.
-      const mode = value.quotaCompatibilityMode === true
-      proxyUrlEditedRef.current = true
-      quotaEditedRef.current = true
-      proxySavedRef.current = true
-      setProxyUrl(url)
-      setSavedProxyUrl(url)
-      setQuotaCompatibilityMode(mode)
-      setSavedQuotaCompatibilityMode(mode)
-      setProxyLoaded(true)
-      setProxyFeedback('saved')
-    } catch {
-      // The save failed, so nothing was stored: keep the draft and the
-      // unsaved marker instead of pretending the pair was committed.
-      setProxyFeedback('error')
-    } finally {
-      setProxyBusy(false)
-    }
-  }
-
-  /** A new edit clears a stale save result, but not a failed read. */
-  const resetProxyFeedback = (): void => {
-    setProxyFeedback(previous => previous === 'loadError' ? previous : 'idle')
-  }
-
   const refresh = useCallback(async () => {
     // Serialize polls: if /auth/status is slower than the 1-second interval,
     // every tick used to bump the sequence and doom every completion, leaving
@@ -573,7 +458,6 @@ export function XaiSettings({ t }: XaiOAuthSettingsProps) {
     void refresh()
     return invalidateStatusRead
   }, [refresh, invalidateStatusRead])
-  useEffect(() => { void loadProxy() }, [loadProxy])
   useEffect(() => { void loadOptions() }, [loadOptions])
   useEffect(() => {
     if (status.status !== 'signing-in') return
@@ -857,36 +741,7 @@ export function XaiSettings({ t }: XaiOAuthSettingsProps) {
         </div>
       ) : null}
 
-      {page === 'network' ? (
-        <div className="gk-page" role="region" aria-label={t('navNetwork')}>
-          <div className="gk-panel gk-stack">
-            <label className="gk-field"><b className="gk-title">{t('proxyTitle')}</b><input className="gk-input" type="text" value={proxyUrl} placeholder={t('proxyPlaceholder')} disabled={proxyBusy} aria-label={t('proxyTitle')} onChange={event => {
-              proxyUrlEditedRef.current = true
-              setProxyUrl(event.target.value)
-              resetProxyFeedback()
-            }} /></label>
-            <p className="gk-hint">{t('proxyHint')}</p>
-          </div>
-          <div className="gk-stack">
-            <label className="gk-setting-label"><b>{t('quotaCompatibilityMode')}</b><input className="gk-switch" type="checkbox" checked={quotaCompatibilityMode} disabled={proxyBusy} onChange={event => {
-              quotaEditedRef.current = true
-              setQuotaCompatibilityMode(event.target.checked)
-              resetProxyFeedback()
-            }} /></label>
-            <p className="gk-hint">{t('quotaCompatibilityModeHint')}</p>
-            <p role="note" className="gk-hint gk-error">{t('quotaCompatibilityWarning')}</p>
-          </div>
-        </div>
-      ) : null}
-
       {page === 'search' || page === 'media' ? optionActions(page) : null}
-      {page === 'network' ? <footer className="gk-footer">
-        {pageHasDraft('network') ? <p role="status" className="gk-feedback">{t('unsavedChangesHint')} {t('networkUnsavedChangesHint')} {quotaCompatibilityMode !== savedQuotaCompatibilityMode ? t('quotaCompatibilityUnsaved') : ''}</p> : null}
-        <div className="gk-actions"><button type="button" className="gk-button gk-button--primary" disabled={proxyBusy || !proxyLoaded} onClick={() => { void saveProxy() }}>{proxyBusy ? t('working') : t('proxySave')}</button><span className="gk-hint">{t('networkImmediate')}</span></div>
-        {proxyFeedback === 'saved' ? <p role="status" className="gk-feedback gk-success">{t('proxySaved')}</p> : null}
-        {proxyFeedback === 'error' ? <p role="alert" className="gk-feedback gk-error">{t('proxyError')}</p> : null}
-        {proxyFeedback === 'loadError' ? <><p role="alert" className="gk-feedback gk-error">{t('proxyLoadError')}</p><button type="button" className="gk-button" disabled={proxyLoading} aria-label={t('proxyRetry')} onClick={() => { void loadProxy() }}>{proxyLoading ? t('working') : t('proxyRetry')}</button></> : null}
-      </footer> : null}
     </section>
   )
 }

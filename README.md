@@ -206,11 +206,10 @@ dsh plugin --profile web add github:MaRi23333/dsh-grok-kit#0578aad2ac07a60e664ae
 | `editModel` | `''` | 固定图生图模型；为空时跟随线上目录自动选择（优先 `grok-imagine-image-2.0`，fallback `grok-imagine-image`） |
 | `editMaxSourceImages` | `5` | `grok_imagine_edit` 单次请求源图片上限，插件最多接受 5 张 |
 | `editMaxImageBytes` | `20971520` | `grok_imagine_edit` 单张源图片体积上限（默认 20 MiB） |
-| `proxyUrl` | `''` | xAI 专用 HTTP/HTTPS 代理；设置页保存值优先 |
 
 本 bundle 的组合默认值来自 `cordis.patch.yml`。手工拆分或重组配置时，可用 `dsh --profile web --dump-config` 核对最终值。
 
-设置页 → xAI Grok →「搜索与对话」或「媒体与任务」可分别覆盖相关搜索/功能键；保存和重置只影响当前页，切页保留草稿（保存后重启生效；未修改的键继续跟随组合默认值，不会固化）。「网络」页的 `proxyUrl` 保存即生效。路线与后续候选见 [路线文档](ROADMAP.zh.md)。
+设置页 → xAI Grok →「搜索与对话」或「媒体与任务」可分别覆盖相关搜索/功能键；保存和重置只影响当前页，切页保留草稿（保存后重启生效；未修改的键继续跟随组合默认值，不会固化）。路线与后续候选见 [路线文档](ROADMAP.zh.md)。
 
 「网络」页另有默认关闭的 **配额请求兼容模式**。若登录、聊天正常但额度读取因全局 `fetch` 包装链冲突而超时，可开启此项并保存：仅额度请求改用插件专用通道，每次请求动态使用当前 xAI 代理，不影响聊天和登录；代理留空时专用通道明确直连，不跟随宿主的全局 `fetch` 或全局 dispatcher。开关与代理地址一起保存后立即生效，无需重启，并清除旧配额缓存。页面显示实际生效的地址（含配置/环境变量回退），保存会将该地址作为插件存储覆盖，优先于配置/环境变量。凭据目的地、禁止重定向、超时/取消和账号隔离保护不变；此模式不保证解决所有插件组合的网络故障。
 

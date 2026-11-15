@@ -16,14 +16,13 @@
  *
  * Covered here:
  *   1. the sticky header renders the shared title, the account status line and
- *      exactly five page buttons, with `aria-current` on the active one;
+ *      exactly four page buttons, with `aria-current` on the active one;
  *   2. only the active page is mounted — quota belongs to the account page,
  *      the capability / task panel to the media page, and neither page's reads
  *      happen before it is opened;
- *   3. switching pages issues no request of its own (status / proxy / options
- *      stay at exactly one each);
- *   4. drafts survive a page switch: an unsaved proxy URL and an unsaved option
- *      are still there when the user comes back, with nothing written;
+ *   3. switching pages issues no request of its own (status / options stay at
+ *      exactly one each);
+ *   4. drafts survive a page switch: an unsaved option is still there when the user comes back, with nothing written;
  *   5. save / reset are scoped to the active page's keys and named after it,
  *      and saving one page never drops the other page's unsaved draft;
  *      Media reset also clears the read-only videoModel / videoMaxBytes
@@ -33,10 +32,6 @@
  *   7. the account key (status + generation) reaches both account-scoped
  *      panels, so an account switch remounts them and drops the old rows;
  *   8. each option field lives on exactly one page;
- *   9. the network page's quota request compatibility mode: off by default and
- *      off for a legacy response, read from the service, saved together with
- *      the proxy URL, kept across a late read or a failed save, and locked
- *      while a save is in flight or before the first read landed.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -237,7 +232,6 @@ function stubFetch(overrides: Record<string, unknown> = {}): void {
   probe.bodies = []
   const defaults: Record<string, unknown> = {
     '/auth/status': SIGNED_IN,
-    '/auth/proxy': { proxyUrl: '' },
     '/auth/options': {
       options: { backendSearch: false, imagineTool: true, videoTool: false },
       stored: {},
@@ -266,18 +260,7 @@ function stubFetch(overrides: Record<string, unknown> = {}): void {
           for (const option of Object.keys(patch)) if (patch[option] === null) delete stored[option]
           return { ...(body as object), stored, effective: { ...(body as { effective?: object }).effective, ...stored } }
         })()
-      : key === '/auth/proxy' && init?.body !== undefined
-        ? (() => {
-            // The service answers with the pair it stored: the normalized URL
-            // and the compatibility flag. An old service leaves the flag out,
-            // which the client reads as "off".
-            const patch = JSON.parse(init.body) as { proxyUrl?: unknown; quotaCompatibilityMode?: unknown }
-            return {
-              proxyUrl: String(patch.proxyUrl ?? '').trim(),
-              quotaCompatibilityMode: patch.quotaCompatibilityMode === true,
-            }
-          })()
-        : body
+      : body
     return Promise.resolve(new Response(JSON.stringify(payload), {
       status: 200,
       headers: { 'content-type': 'application/json' },
@@ -326,14 +309,6 @@ const fire = (element: FakeElement, event: unknown): void =>
 
 const countOf = (suffix: string): number => probe.calls.filter(call => call.endsWith(suffix)).length
 
-/**
- * Wait until the first proxy read landed: the save button is enabled only
- * then, because before that the effective settings are unknown.
- */
-const awaitProxyLoaded = async (): Promise<void> => {
-  await vi.waitFor(() => expect(button(now(), en.proxySave).props.disabled).toBe(false))
-}
-
 const buttonText = (text: string): string =>
   String(find(now(), element => element.type === 'button' && String(element.props.children ?? '').startsWith(text))[0]?.props.children ?? '')
 
@@ -352,7 +327,7 @@ afterEach(() => {
   probe.initialStatus = undefined
 })
 
-describe('five-page settings section', () => {
+describe('four-page settings section', () => {
   it('exposes the same official OAuth entry for new and legacy subscriptions', () => {
     stubFetch({ '/auth/status': { status: 'signed-out' } })
     mount({ status: 'signed-out' })
@@ -419,7 +394,7 @@ describe('five-page settings section', () => {
     expect(panels(now(), QuotaView)[0]?.key).not.toBe(oldKey)
   })
 
-  it('renders a sticky header with the shared title, status line and five pages', () => {
+  it('renders a sticky header with the shared title, status line and four pages', () => {
     stubFetch()
     mount()
     const tree = view()
@@ -435,9 +410,9 @@ describe('five-page settings section', () => {
 
     const nav = find(sticky!, element => element.type === 'nav')[0]
     const buttons = find(nav!, element => element.type === 'button')
-    expect(buttons.map(one => one.props['aria-label'])).toEqual([en.navAccount, en.navModels, en.navSearch, en.navMedia, en.navNetwork])
-    expect(buttons.map(one => texts(one).join(''))).toEqual([en.navAccount, en.navModels, en.navSearchShort, en.navMediaShort, en.navNetwork])
-    expect(buttons.map(one => one.props['aria-current'])).toEqual(['page', undefined, undefined, undefined, undefined])
+    expect(buttons.map(one => one.props['aria-label'])).toEqual([en.navAccount, en.navModels, en.navSearch, en.navMedia])
+    expect(buttons.map(one => texts(one).join(''))).toEqual([en.navAccount, en.navModels, en.navSearchShort, en.navMediaShort])
+    expect(buttons.map(one => one.props['aria-current'])).toEqual(['page', undefined, undefined, undefined])
   })
 
   it('mounts the quota panel on the account page and the capability panel on the media page', async () => {
@@ -479,23 +454,10 @@ describe('five-page settings section', () => {
     stubFetch()
     mount()
     await vi.waitFor(() => expect(countOf('/auth/options')).toBe(1))
-    for (const label of [en.navModels, en.navSearch, en.navNetwork, en.navAccount, en.navSearch, en.navAccount]) clickPage(label)
+    for (const label of [en.navModels, en.navSearch, en.navMedia, en.navAccount, en.navSearch, en.navAccount]) clickPage(label)
     expect(countOf('/auth/status')).toBe(1)
-    expect(countOf('/auth/proxy')).toBe(1)
     expect(countOf('/auth/options')).toBe(1)
     expect(countOf('/capabilities')).toBe(0)
-    expect(probe.bodies).toEqual([])
-  })
-
-  it('keeps an unsaved proxy draft across a page switch and writes nothing', async () => {
-    stubFetch()
-    mount()
-    await vi.waitFor(() => expect(countOf('/auth/proxy')).toBe(1))
-    clickPage(en.navNetwork)
-    fire(field(now(), en.proxyTitle), { target: { value: 'http://127.0.0.1:8080' } })
-    clickPage(en.navModels)
-    clickPage(en.navNetwork)
-    expect(field(now(), en.proxyTitle).props.value as string).toBe('http://127.0.0.1:8080')
     expect(probe.bodies).toEqual([])
   })
 
@@ -749,9 +711,8 @@ describe('five-page settings section', () => {
         return Promise.resolve(new Response(JSON.stringify({ error: 'boom' }), { status: 500, headers: { 'content-type': 'application/json' } }))
       }
       const body = path.endsWith('/auth/status') ? SIGNED_IN
-        : path.endsWith('/auth/proxy') ? { proxyUrl: '' }
-          : path.endsWith('/auth/options') ? { options: {}, stored: {}, effective: {} }
-            : {}
+        : path.endsWith('/auth/options') ? { options: {}, stored: {}, effective: {} }
+          : {}
       return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } }))
     }))
     mount(SIGNED_IN)
@@ -907,7 +868,6 @@ describe('five-page settings section', () => {
       [en.navModels, []],
       [en.navSearch, [en.backendSearch, en.statefulResponses, en.nestedSearchTools, en.searchModel, en.searchMaxResults, en.webSearchTimeoutMs, en.xSearchTimeoutMs]],
       [en.navMedia, [en.imagineTool, en.videoTool]],
-      [en.navNetwork, []],
     ]
     const owners = new Map<string, string>()
     for (const [page, labels] of pages) {
@@ -948,57 +908,6 @@ describe('five-page settings section', () => {
     expect(navLabel(en.navMedia)).toBe(en.navMedia)
     expect(navLabel(en.navSearch)).toContain(en.unsavedChanges)
     expect(find(now(), node => node.props.role === 'status' && texts(node).includes(en.optionsSaved))).toHaveLength(1)
-  })
-
-  it('keeps the network marker until a successful normalized proxy save', async () => {
-    stubFetch()
-    mount()
-    await new Promise(resolve => setTimeout(resolve, 0))
-    clickPage(en.navNetwork)
-    fire(field(now(), en.proxyTitle), { target: { value: ' http://127.0.0.1:8080 ' } })
-    expect(texts(view())).toContain(en.unsavedChangesHint)
-    clickPage(en.navSearch)
-    expect(find(now(), node => node.type === 'button' && node.props['aria-label'] === `${en.navNetwork} — ${en.unsavedChanges}`)).toHaveLength(1)
-    clickPage(en.navNetwork)
-    ;(button(now(), en.proxySave).props.onClick as () => void)()
-    await vi.waitFor(() => expect(texts(view())).toContain(en.proxySaved))
-    expect(field(now(), en.proxyTitle).props.value).toBe('http://127.0.0.1:8080')
-    expect(find(now(), node => node.type === 'button' && node.props['aria-label'] === en.navNetwork)).toHaveLength(1)
-    expect(texts(view())).not.toContain(en.unsavedChangesHint)
-  })
-
-  it('keeps proxy edits when the initial read arrives late', async () => {
-    stubFetch()
-    const originalFetch = globalThis.fetch
-    let finish!: (response: Response) => void
-    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => url.endsWith('/auth/proxy') && init?.method !== 'POST'
-      ? new Promise<Response>(resolve => { finish = resolve }) : originalFetch(url, init)))
-    mount()
-    clickPage(en.navNetwork)
-    fire(field(now(), en.proxyTitle), { target: { value: 'http://127.0.0.1:8080' } })
-    finish(new Response(JSON.stringify({ proxyUrl: 'http://127.0.0.1:9090' })))
-    await new Promise(resolve => setTimeout(resolve, 0))
-    expect(field(now(), en.proxyTitle).props.value).toBe('http://127.0.0.1:8080')
-    expect(probe.bodies).toEqual([])
-    fire(field(now(), en.proxyTitle), { target: { value: 'http://127.0.0.1:9090' } })
-    expect(find(now(), node => node.type === 'button' && node.props['aria-label'] === en.navNetwork)).toHaveLength(1)
-  })
-
-  it('does not restore an old proxy baseline after a newer save commits', async () => {
-    stubFetch()
-    const originalFetch = globalThis.fetch
-    let finish!: (response: Response) => void
-    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => url.endsWith('/auth/proxy') && init?.method !== 'POST'
-      ? new Promise<Response>(resolve => { finish = resolve }) : originalFetch(url, init)))
-    mount()
-    clickPage(en.navNetwork)
-    fire(field(now(), en.proxyTitle), { target: { value: 'http://127.0.0.1:8080' } })
-    ;(button(now(), en.proxySave).props.onClick as () => void)()
-    await vi.waitFor(() => expect(texts(view())).toContain(en.proxySaved))
-    finish(new Response(JSON.stringify({ proxyUrl: 'http://127.0.0.1:9090' })))
-    await new Promise(resolve => setTimeout(resolve, 0))
-    expect(field(now(), en.proxyTitle).props.value).toBe('http://127.0.0.1:8080')
-    expect(find(now(), node => node.type === 'button' && node.props['aria-label'] === en.navNetwork)).toHaveLength(1)
   })
 
   it.each(['save', 'reset'] as const)('does not roll committed options back when initial loading completes after %s', async action => {
@@ -1055,258 +964,5 @@ describe('five-page settings section', () => {
     expect(field(now(), en.searchModel).props.value).toBe('keep-me')
     expect(button(now(), en.optionsSave).props.disabled).toBe(false)
     expect(find(now(), node => node.type === 'button' && node.props['aria-label'] === `${en.navSearch} — ${en.unsavedChanges}`)).toHaveLength(1)
-  })
-
-  /* ---- quota request compatibility mode (network page) ---- */
-
-  it('keeps the quota compatibility mode off when the service reports no flag', async () => {
-    // A legacy service answers without the field at all.
-    stubFetch({ '/auth/proxy': { proxyUrl: '' } })
-    mount()
-    clickPage(en.navNetwork)
-    await awaitProxyLoaded()
-    expect(field(now(), en.quotaCompatibilityMode).props.checked).toBe(false)
-    // The read succeeded, so the pair may be saved.
-    expect(button(now(), en.proxySave).props.disabled).toBe(false)
-  })
-
-  it('reads the quota compatibility mode the service reports', async () => {
-    stubFetch({ '/auth/proxy': { proxyUrl: 'http://127.0.0.1:8080', quotaCompatibilityMode: true } })
-    mount()
-    clickPage(en.navNetwork)
-    await awaitProxyLoaded()
-    expect(field(now(), en.quotaCompatibilityMode).props.checked).toBe(true)
-    expect(field(now(), en.proxyTitle).props.value).toBe('http://127.0.0.1:8080')
-  })
-
-  it('does not read a truthy non-boolean flag as "on"', async () => {
-    stubFetch({ '/auth/proxy': { proxyUrl: '', quotaCompatibilityMode: 'true' } })
-    mount()
-    clickPage(en.navNetwork)
-    await awaitProxyLoaded()
-    expect(field(now(), en.quotaCompatibilityMode).props.checked).toBe(false)
-  })
-
-  it('marks the network page dirty when only the compatibility mode changes', async () => {
-    stubFetch()
-    mount()
-    clickPage(en.navNetwork)
-    await awaitProxyLoaded()
-    fire(field(now(), en.quotaCompatibilityMode), { target: { checked: true } })
-    expect(texts(view())).toContain(en.unsavedChangesHint)
-    // The hint names the switch, not only the URL.
-    expect(texts(view())).toContain(en.quotaCompatibilityUnsaved)
-    expect(find(now(), node => node.type === 'button' && node.props['aria-label'] === `${en.navNetwork} — ${en.unsavedChanges}`)).toHaveLength(1)
-    expect(probe.bodies).toEqual([])
-  })
-
-  it('saves the proxy URL and the compatibility mode in one request', async () => {
-    stubFetch()
-    mount()
-    clickPage(en.navNetwork)
-    await awaitProxyLoaded()
-    fire(field(now(), en.proxyTitle), { target: { value: 'http://127.0.0.1:8080' } })
-    fire(field(now(), en.quotaCompatibilityMode), { target: { checked: true } })
-    ;(button(now(), en.proxySave).props.onClick as () => void)()
-    await vi.waitFor(() => expect(probe.bodies).toHaveLength(1))
-    expect(probe.bodies[0]).toEqual({ proxyUrl: 'http://127.0.0.1:8080', quotaCompatibilityMode: true })
-    await vi.waitFor(() => expect(texts(view())).toContain(en.proxySaved))
-    // The saved pair is the new baseline: nothing is left unsaved.
-    expect(texts(view())).not.toContain(en.unsavedChangesHint)
-    expect(find(now(), node => node.type === 'button' && node.props['aria-label'] === en.navNetwork)).toHaveLength(1)
-    expect(field(now(), en.quotaCompatibilityMode).props.checked).toBe(true)
-  })
-
-  it('keeps the compatibility mode draft and the unsaved marker when the save fails', async () => {
-    stubFetch()
-    const originalFetch = globalThis.fetch
-    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => url.endsWith('/auth/proxy') && init?.method === 'POST'
-      ? Promise.resolve(new Response('{}', { status: 500 })) : originalFetch(url, init)))
-    mount()
-    clickPage(en.navNetwork)
-    await awaitProxyLoaded()
-    fire(field(now(), en.quotaCompatibilityMode), { target: { checked: true } })
-    ;(button(now(), en.proxySave).props.onClick as () => void)()
-    await vi.waitFor(() => expect(find(now(), node => node.props.role === 'alert' && texts(node).includes(en.proxyError))).toHaveLength(1))
-    expect(field(now(), en.quotaCompatibilityMode).props.checked).toBe(true)
-    expect(texts(view())).not.toContain(en.proxySaved)
-    expect(find(now(), node => node.type === 'button' && node.props['aria-label'] === `${en.navNetwork} — ${en.unsavedChanges}`)).toHaveLength(1)
-  })
-
-  it('loads the proxy URL even when the compatibility mode was toggled before the read lands', async () => {
-    stubFetch()
-    const originalFetch = globalThis.fetch
-    let finish!: (response: Response) => void
-    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => url.endsWith('/auth/proxy') && init?.method !== 'POST'
-      ? new Promise<Response>(resolve => { finish = resolve }) : originalFetch(url, init)))
-    mount()
-    clickPage(en.navNetwork)
-    fire(field(now(), en.quotaCompatibilityMode), { target: { checked: true } })
-    // The effective settings are unknown yet, so the pair cannot be saved.
-    expect(button(now(), en.proxySave).props.disabled).toBe(true)
-    // Editing stays allowed while the read is in flight.
-    expect(field(now(), en.quotaCompatibilityMode).props.disabled).toBe(false)
-    finish(new Response(JSON.stringify({ proxyUrl: 'http://127.0.0.1:9090', quotaCompatibilityMode: false })))
-    await new Promise(resolve => setTimeout(resolve, 0))
-    // The URL the user never edited is filled in …
-    expect(field(now(), en.proxyTitle).props.value).toBe('http://127.0.0.1:9090')
-    // … and the toggle the user edited is not overwritten.
-    expect(field(now(), en.quotaCompatibilityMode).props.checked).toBe(true)
-    expect(find(now(), node => node.type === 'button' && node.props['aria-label'] === `${en.navNetwork} — ${en.unsavedChanges}`)).toHaveLength(1)
-    expect(probe.bodies).toEqual([])
-  })
-
-  it('shows a load error and keeps the save disabled when the first read fails', async () => {
-    stubFetch()
-    const originalFetch = globalThis.fetch
-    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => url.endsWith('/auth/proxy') && init?.method !== 'POST'
-      ? Promise.resolve(new Response('{}', { status: 500 })) : originalFetch(url, init)))
-    mount()
-    clickPage(en.navNetwork)
-    await vi.waitFor(() => expect(find(now(), node => node.props.role === 'alert' && texts(node).includes(en.proxyLoadError))).toHaveLength(1))
-    // The effective settings are unknown, so the pair must not be written back.
-    expect(button(now(), en.proxySave).props.disabled).toBe(true)
-    // Editing stays allowed while the error is on screen.
-    expect(field(now(), en.quotaCompatibilityMode).props.disabled).toBe(false)
-    expect(probe.bodies).toEqual([])
-  })
-
-  it('retries a failed settings read without dropping edited URL or mode drafts', async () => {
-    stubFetch()
-    const originalFetch = globalThis.fetch
-    let reads = 0
-    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
-      if (url.endsWith('/auth/proxy') && init?.method !== 'POST') {
-        reads += 1
-        return Promise.resolve(new Response(JSON.stringify({ proxyUrl: 'http://127.0.0.1:9090', quotaCompatibilityMode: false }), { status: reads === 1 ? 500 : 200 }))
-      }
-      return originalFetch(url, init)
-    }))
-    mount()
-    clickPage(en.navNetwork)
-    await vi.waitFor(() => expect(texts(now())).toContain(en.proxyLoadError))
-    fire(field(now(), en.proxyTitle), { target: { value: 'http://127.0.0.1:8080' } })
-    fire(field(now(), en.quotaCompatibilityMode), { target: { checked: true } })
-    ;(button(now(), en.proxyRetry).props.onClick as () => void)()
-    await awaitProxyLoaded()
-    expect(reads).toBe(2)
-    expect(texts(now())).not.toContain(en.proxyLoadError)
-    expect(field(now(), en.proxyTitle).props.value).toBe('http://127.0.0.1:8080')
-    expect(field(now(), en.quotaCompatibilityMode).props.checked).toBe(true)
-    expect(texts(now())).toContain(en.unsavedChangesHint)
-    ;(button(now(), en.proxySave).props.onClick as () => void)()
-    await vi.waitFor(() => expect(probe.bodies).toEqual([{ proxyUrl: 'http://127.0.0.1:8080', quotaCompatibilityMode: true }]))
-  })
-
-  it('deduplicates retry clicks and allows another retry after a second failure', async () => {
-    stubFetch()
-    const originalFetch = globalThis.fetch
-    let reads = 0
-    let finish!: (response: Response) => void
-    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
-      if (url.endsWith('/auth/proxy') && init?.method !== 'POST') {
-        reads += 1
-        if (reads === 2) return new Promise<Response>(resolve => { finish = resolve })
-        return Promise.resolve(new Response(JSON.stringify({ proxyUrl: '', quotaCompatibilityMode: false }), { status: reads === 1 ? 500 : 200 }))
-      }
-      return originalFetch(url, init)
-    }))
-    mount()
-    clickPage(en.navNetwork)
-    await vi.waitFor(() => expect(texts(now())).toContain(en.proxyLoadError))
-    const retry = button(now(), en.proxyRetry).props.onClick as () => void
-    retry()
-    retry()
-    expect(reads).toBe(2)
-    expect(find(now(), node => node.type === 'button' && node.props['aria-label'] === en.proxyRetry)[0]?.props.disabled).toBe(true)
-    expect(button(now(), en.proxySave).props.disabled).toBe(true)
-    finish(new Response('{}', { status: 500 }))
-    await vi.waitFor(() => expect(button(now(), en.proxyRetry).props.disabled).toBe(false))
-    expect(button(now(), en.proxySave).props.disabled).toBe(true)
-    ;(button(now(), en.proxyRetry).props.onClick as () => void)()
-    await awaitProxyLoaded()
-    expect(reads).toBe(3)
-    expect(texts(now())).not.toContain(en.proxyLoadError)
-    expect(probe.bodies).toEqual([])
-  })
-
-  it('keeps the saved pair when a late read arrives after the save commits', async () => {
-    stubFetch()
-    const originalFetch = globalThis.fetch
-    let finish!: (response: Response) => void
-    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => url.endsWith('/auth/proxy') && init?.method !== 'POST'
-      ? new Promise<Response>(resolve => { finish = resolve }) : originalFetch(url, init)))
-    mount()
-    clickPage(en.navNetwork)
-    fire(field(now(), en.proxyTitle), { target: { value: 'http://127.0.0.1:8080' } })
-    fire(field(now(), en.quotaCompatibilityMode), { target: { checked: true } })
-    ;(button(now(), en.proxySave).props.onClick as () => void)()
-    await vi.waitFor(() => expect(texts(view())).toContain(en.proxySaved))
-    finish(new Response(JSON.stringify({ proxyUrl: 'http://127.0.0.1:9090', quotaCompatibilityMode: false })))
-    await new Promise(resolve => setTimeout(resolve, 0))
-    expect(field(now(), en.proxyTitle).props.value).toBe('http://127.0.0.1:8080')
-    expect(field(now(), en.quotaCompatibilityMode).props.checked).toBe(true)
-    expect(find(now(), node => node.type === 'button' && node.props['aria-label'] === en.navNetwork)).toHaveLength(1)
-  })
-
-  it('disables both network fields while the save is in flight', async () => {
-    stubFetch()
-    const originalFetch = globalThis.fetch
-    let finish!: (response: Response) => void
-    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
-      if (url.endsWith('/auth/proxy') && init?.method === 'POST') {
-        if (typeof init.body === 'string') probe.bodies.push(JSON.parse(init.body))
-        return new Promise<Response>(resolve => { finish = resolve })
-      }
-      return originalFetch(url, init)
-    }))
-    mount()
-    clickPage(en.navNetwork)
-    await awaitProxyLoaded()
-    fire(field(now(), en.quotaCompatibilityMode), { target: { checked: true } })
-    ;(button(now(), en.proxySave).props.onClick as () => void)()
-    await vi.waitFor(() => expect(probe.bodies).toHaveLength(1))
-    expect(field(now(), en.proxyTitle).props.disabled).toBe(true)
-    expect(field(now(), en.quotaCompatibilityMode).props.disabled).toBe(true)
-    finish(new Response(JSON.stringify({ proxyUrl: '', quotaCompatibilityMode: true })))
-    await new Promise(resolve => setTimeout(resolve, 0))
-    expect(field(now(), en.proxyTitle).props.disabled).toBe(false)
-    expect(field(now(), en.quotaCompatibilityMode).props.disabled).toBe(false)
-  })
-
-  it('keeps the network draft across a page switch', async () => {
-    stubFetch()
-    mount()
-    clickPage(en.navNetwork)
-    await awaitProxyLoaded()
-    fire(field(now(), en.quotaCompatibilityMode), { target: { checked: true } })
-    clickPage(en.navModels)
-    clickPage(en.navNetwork)
-    expect(field(now(), en.quotaCompatibilityMode).props.checked).toBe(true)
-    expect(texts(view())).toContain(en.unsavedChangesHint)
-    expect(probe.bodies).toEqual([])
-  })
-
-  it('describes the compatibility mode in English and Chinese', () => {
-    expect(en.quotaCompatibilityMode).toBe('Quota request compatibility mode')
-    expect(zh.quotaCompatibilityMode).toBe('配额请求兼容模式')
-    expect(en.quotaCompatibilityModeHint).toContain('immediately')
-    expect(en.quotaCompatibilityModeHint).toContain('no restart')
-    expect(zh.quotaCompatibilityModeHint).toContain('立即生效')
-    expect(zh.quotaCompatibilityModeHint).toContain('无需重启')
-    expect(en.quotaCompatibilityWarning).toContain('Do not enable')
-    expect(en.quotaCompatibilityWarning).toContain('DLP')
-    expect(zh.quotaCompatibilityWarning).toContain('不要开启')
-    expect(zh.quotaCompatibilityWarning).toContain('不能恢复')
-
-    stubFetch()
-    harness.reset()
-    probe.initialStatus = SIGNED_IN
-    harness.mount(XaiSettings as unknown as (props: unknown) => unknown, { t: (key: keyof typeof zh) => zh[key] })
-    clickPage(zh.navNetwork)
-    const rendered = texts(now()).join(' | ')
-    expect(rendered).toContain('配额请求兼容模式')
-    expect(rendered).toContain('立即生效')
-    expect(rendered).toContain(zh.quotaCompatibilityWarning)
   })
 })

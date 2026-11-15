@@ -1,5 +1,10 @@
 # 更新记录 / Changelog
 
+## 0.2.17（2026-11-16）
+
+- 移除插件自带的代理支持：网络页、`proxyUrl` 配置、`DSH_XAI_PROXY`、全局 fetch 钩子和配额兼容传输。xAI 请求走宿主网络。
+- Remove the plugin's own proxy support: the Network page, the `proxyUrl` config, `DSH_XAI_PROXY`, the global fetch hook and the quota compatibility transport. xAI requests use the host network.
+
 ## 0.2.16（2026-11-15）
 
 - “更多设置”在模型卡片内展开，不再使用模态对话框；嵌入时页脚不再吸附，避免超出卡片。

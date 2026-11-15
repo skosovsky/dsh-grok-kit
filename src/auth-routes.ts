@@ -15,7 +15,6 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import { loginXaiOAuthSession, importXaiOAuthSession, xaiOAuthAuthStatus } from './auth.ts'
 import type { CatalogSource } from './catalog.ts'
 import { probeGrokAuth } from './grok-import.ts'
-import { readXaiProxySettings, setQuotaCompatibilityMode, setXaiProxyUrl, validProxyUrl, writeStoredProxySettings } from './proxy.ts'
 import { safeMessage } from './redact.ts'
 import { MEDIA_TOOL_KEYS, mediaEnableNeedsConfirmation } from './media-options.ts'
 import {
@@ -32,7 +31,6 @@ export const XAI_OAUTH_AUTH_LOGIN_PATH = '/plugins/dsh-grok-kit/auth/login'
 export const XAI_OAUTH_AUTH_IMPORT_PATH = '/plugins/dsh-grok-kit/auth/import'
 export const XAI_OAUTH_AUTH_LOGOUT_PATH = '/plugins/dsh-grok-kit/auth/logout'
 export const XAI_OAUTH_AUTH_MODELS_PATH = '/plugins/dsh-grok-kit/auth/models'
-export const XAI_OAUTH_AUTH_PROXY_PATH = '/plugins/dsh-grok-kit/auth/proxy'
 export const XAI_OAUTH_AUTH_OPTIONS_PATH = '/plugins/dsh-grok-kit/auth/options'
 
 /** Known option keys; POST accepts null / '' to remove an explicit override. */
@@ -436,35 +434,9 @@ export function registerXaiOAuthAuthRoutes(
   session: XaiOAuthSession,
   cordisConfig: Record<string, unknown> = {},
   onAccountChange?: () => void,
-  onNetworkChange?: () => void,
+  _onNetworkChange?: () => void,
 ): void {
   const auth = new XaiOAuthWebAuth(session, onAccountChange)
-  const configProxyUrl = typeof cordisConfig.proxyUrl === 'string' ? cordisConfig.proxyUrl : undefined
-  // Serialize the persisted pair and apply only after the atomic write succeeds.
-  // URL-only clients preserve the mode selected in another tab.
-  let proxyWrite = Promise.resolve()
-  let disposed = false
-  const networkActive = () => !disposed
-  const saveProxySettings = (proxyUrl: string, mode: boolean | undefined) => {
-    const pending = proxyWrite.then(async () => {
-      if (!networkActive()) throw new Error('Network settings are no longer active')
-      const settings = {
-        proxyUrl,
-        quotaCompatibilityMode: mode ?? readXaiProxySettings(configProxyUrl).quotaCompatibilityMode,
-      }
-      await writeStoredProxySettings(settings)
-      // A write already in progress may finish, but unloading must not let a
-      // late completion recreate a closed agent or mutate a new plugin owner.
-      if (networkActive()) {
-        setXaiProxyUrl(settings.proxyUrl)
-        setQuotaCompatibilityMode(settings.quotaCompatibilityMode)
-        onNetworkChange?.()
-      }
-      return settings
-    })
-    proxyWrite = pending.then(() => undefined, () => undefined)
-    return pending
-  }
   // Keep merge/check/write in order across tabs: a stale unrelated save must
   // not resurrect switches that another request just closed.
   let optionsWrite = Promise.resolve()
@@ -551,38 +523,6 @@ export function registerXaiOAuthAuthRoutes(
       }),
       ctx.webServer.register({
         kind: 'exact',
-        path: XAI_OAUTH_AUTH_PROXY_PATH,
-        handler: async (req, res) => {
-          if (!trustedRequest(req)) return json(res, 403, { error: 'forbidden' })
-          if (req.method === 'GET') {
-            return json(res, 200, readXaiProxySettings(configProxyUrl))
-          }
-          if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' })
-          try {
-            const body = await readJson(req)
-            const proxyUrl = typeof body === 'object' && body !== null && 'proxyUrl' in body
-              ? body.proxyUrl
-              : undefined
-            if (typeof proxyUrl !== 'string') {
-              return json(res, 400, { error: 'proxyUrl must be a string' })
-            }
-            const normalized = validProxyUrl(proxyUrl)
-            if (normalized === undefined) {
-              return json(res, 400, { error: 'proxyUrl must be a valid http:// or https:// URL' })
-            }
-            const mode = typeof body === 'object' && body !== null && 'quotaCompatibilityMode' in body
-              ? body.quotaCompatibilityMode : undefined
-            if (mode !== undefined && typeof mode !== 'boolean') {
-              return json(res, 400, { error: 'quotaCompatibilityMode must be a boolean' })
-            }
-            json(res, 200, await saveProxySettings(normalized, mode))
-          } catch (error: unknown) {
-            json(res, errorStatus(error), { error: safeMessage(error) })
-          }
-        },
-      }),
-      ctx.webServer.register({
-        kind: 'exact',
         path: XAI_OAUTH_AUTH_OPTIONS_PATH,
         handler: async (req, res) => {
           if (!trustedRequest(req)) return json(res, 403, { error: 'forbidden' })
@@ -617,11 +557,8 @@ export function registerXaiOAuthAuthRoutes(
       }),
     ]
     return async () => {
-      disposed = true
       for (const dispose of routes) dispose()
-      // Drain admitted disk writes before a replacement owner can save newer
-      // settings. Cancel auth promptly while waiting for the settled queue.
-      await Promise.all([proxyWrite, auth.dispose()])
+      await auth.dispose()
     }
   }, 'dsh-grok-kit: Web OAuth routes')
 }

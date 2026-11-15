@@ -206,11 +206,10 @@ Legacy media enablement without acknowledgment stays inactive; confirm explicitl
 | `editModel` | `''` | Pin the image-edit model; empty string follows live catalog (prefers `grok-imagine-image-2.0`, fallback `grok-imagine-image`) |
 | `editMaxSourceImages` | `5` | Per-request source-image cap for `grok_imagine_edit` (plugin accepts up to 5) |
 | `editMaxImageBytes` | `20971520` | Per-source byte cap for `grok_imagine_edit` (default 20 MiB) |
-| `proxyUrl` | `''` | xAI-only HTTP/HTTPS proxy; the value saved in Settings wins |
 
 The bundle defaults come from `cordis.patch.yml`. For a manually reduced or recomposed setup, inspect the final values with `dsh --profile web --dump-config`.
 
-Settings split related keys between Search & conversation and Media & tasks. Saves/resets apply only to the current page and drafts survive page switches (restart to apply; untouched keys still follow the bundle defaults). `proxyUrl` on Network applies immediately on save. See the [roadmap](ROADMAP.zh.md) for delivery status and future candidates.
+Settings split related keys between Search & conversation and Media & tasks. Saves/resets apply only to the current page and drafts survive page switches (restart to apply; untouched keys still follow the bundle defaults). See the [roadmap](ROADMAP.zh.md) for delivery status and future candidates.
 
 Network also offers **Quota request compatibility mode**, off by default. If sign-in and chat work but quota reads time out because of a global `fetch` wrapper conflict, enable it and save: only quota requests use a plugin-owned channel, reading the current xAI proxy on every call. Chat and sign-in are unchanged. A blank proxy explicitly connects this channel directly, without the host's global `fetch` or global dispatcher. The mode and URL are saved together, take effect immediately without a restart, and invalidate the old quota cache. The page shows the effective URL, including config/environment fallback; saving persists that address as the plugin's stored override, ahead of config/environment values. Credential destinations, redirect refusal, timeouts/cancellation and account isolation remain enforced. This mode is not a guarantee against every multi-plugin networking conflict.
 

@@ -118,7 +118,6 @@ After a successful login the plugin calls `GET /v1/models` and caches the accoun
 ## Migrating from dsh-xai
 
 - Both plugins can still read a leftover `$DSH_HOME/.xai-oauth-auth.json`. The live store is `~/.grok/auth.json` when that file exists (same document Grok CLI uses).
-- The proxy setting also carries over (`$DSH_HOME/.xai-oauth-proxy.json`).
 - **Do not keep both installed in the same profile.** dsh-grok-kit guards its own side (unique plugin id, route/settings-page checks), but the old bundle can still fail the profile boot when it loads second. In Desktop, uninstall dsh-xai from the Plugins page first. For Web, run:
   `dsh plugin --profile web remove dsh-xai`
 
@@ -130,9 +129,9 @@ Nested `grok_web_search` / `x_search` (a second `grok-build-0.1` hop) are regist
 
 `grok_imagine` (text-to-image) and `grok_imagine_edit` (image-to-image, reusing the main OAuth session) are off by default; old media enablement is not inherited. Confirm the risks in Settings, save, and restart the host to enable them. Normal use does not repeat the prompt; see [Enabling media tools and understanding the risks](README.en.md#enabling-media-tools-and-understanding-the-risks). Images are stored in the DSH attachment library and rendered directly in session image cards; they can be downloaded from the card or exported with host file tools. Direct disk writing via `save_path` is no longer supported for either tool. Experimental video tools (`grok_video_generate` / `grok_video_status` / `grok_video_resume`) are likewise off by default and enabled after risk confirmation and a restart — see [Video tasks (experimental)](README.en.md#video-tasks-experimental) and [VIDEO.md](VIDEO.md).
 
-## Proxy
+## Network
 
-Optional. Set it from Settings → xAI Grok → Network tab under "Network proxy (xAI only)", or via `DSH_XAI_PROXY` (e.g. `http://127.0.0.1:8080`) in the dsh environment / config. Routes x.ai and official Grok billing requests through this proxy, including the exact `grok.com` `GetGrokCreditsConfig` fallback path. Other requests to these targets in the same DSH process may also be affected; other paths and traffic retain their existing network settings, rather than being forced to connect directly.
+This fork has no proxy setting: xAI requests use the host network (DSH network settings / `HTTP_PROXY` etc. if you set them for the whole host).
 
 ## Uninstall
 

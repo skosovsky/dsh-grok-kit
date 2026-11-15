@@ -3,7 +3,7 @@
  * `xai-oauth` chat route, optional server-side web/X search fused into the
  * main grok-4.6 request (`backendSearch`; off by default — opt in via config
  * or the settings page), optional nested `grok_web_search` / `x_search`,
- * `grok_imagine`, and a per-plugin outbound proxy setting.
+ * and `grok_imagine`. One account, no proxy: requests use the host network.
  *
  * Nested search tools are not registered on `ctx.web`. Native DSH
  * `web_search` stays in the host tool list; the Responses wrap strips
@@ -21,7 +21,6 @@ import type {} from '@deepseek-ai/dsh-system-prompt'
 import { createXaiOAuthAdapter } from './adapter.ts'
 import { registerXaiOAuthAuthRoutes } from './auth-routes.ts'
 import { XAI_OAUTH_ROUTE, XAI_PI_PROVIDER } from './ids.ts'
-import { applyXaiProxy, fetchGrokQuota, installXaiFetchHook } from './proxy.ts'
 import {
   createXaiOAuthSearchTokenSource,
   DEFAULT_XAI_SEARCH_MODEL,
@@ -69,7 +68,6 @@ export {
   XAI_OAUTH_AUTH_LOGOUT_PATH,
   XAI_OAUTH_AUTH_MODELS_PATH,
   XAI_OAUTH_AUTH_OPTIONS_PATH,
-  XAI_OAUTH_AUTH_PROXY_PATH,
   XAI_OAUTH_AUTH_STATUS_PATH,
 } from './auth-routes.ts'
 export type { LoginChallenge, XaiOAuthWebAuthStatus } from './auth-routes.ts'
@@ -144,15 +142,6 @@ export {
 export type { XaiResponsesWrapOptions } from './responses.ts'
 export { safeMessage } from './redact.ts'
 export {
-  applyXaiProxy,
-  installXaiFetchHook,
-  readStoredProxyUrl,
-  resolveXaiProxyUrl,
-  setXaiProxyUrl,
-  writeStoredProxyUrl,
-  xaiProxyPath,
-} from './proxy.ts'
-export {
   createXaiOAuthSearchTokenSource,
   DEFAULT_XAI_SEARCH_MODEL,
   includeForSearchTool,
@@ -219,8 +208,6 @@ export const name = 'dsh-grok-kit'
 export const inject = ['llm']
 
 export interface Config {
-  /** Optional outbound HTTP/HTTPS proxy for xAI traffic, e.g. http://127.0.0.1:8080; '' = stored/env default. */
-  proxyUrl?: string
   /** Model used for nested xAI search. Defaults to grok-build-0.1. */
   searchModel?: string
   /** Upper bound on sources returned by one search call. Defaults to 8. */
@@ -269,7 +256,6 @@ export interface Config {
 }
 
 export const Config: z<Config> = z.object({
-  proxyUrl: z.string().default(''),
   searchModel: z.string().default(DEFAULT_XAI_SEARCH_MODEL),
   searchMaxResults: z.number().default(DEFAULT_SEARCH_MAX_RESULTS),
   webSearchTimeoutMs: z.number().default(DEFAULT_WEB_SEARCH_TIMEOUT_MS),
@@ -314,14 +300,6 @@ export function apply(ctx: Context, config: Config): void {
     config as unknown as Record<string, unknown>,
     readStoredOptions(),
   ))[key]
-  // Proxy lifecycle FIRST: OAuth, models, chat and search retain the global
-  // hook; quota can opt into the same current proxy through an owned transport.
-  // The effect restores our hook and closes both owned dispatchers on dispose.
-  ctx.effect(() => {
-    const dispose = installXaiFetchHook()
-    applyXaiProxy(effectiveConfig.proxyUrl)
-    return dispose
-  }, 'dsh-grok-kit: xAI proxy hook')
 
   const session = new XaiOAuthSession(new XaiOAuthCredentialStore(), () => {
     // Model selection and catalog retries are not account changes. Auth routes
@@ -332,7 +310,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.effect(() => () => session.dispose(), 'dsh-grok-kit: session retry lifecycle')
   const tokens = createXaiOAuthSearchTokenSource(session)
   const capabilities = new CapabilityTracker()
-  const quota = new SuperGrokQuotaClient({ tokens, fetch: fetchGrokQuota })
+  const quota = new SuperGrokQuotaClient({ tokens, fetch: (input, init) => globalThis.fetch(input, init) })
   ctx.effect(() => () => quota.dispose(), 'dsh-grok-kit: quota lifecycle')
   ctx.inject(['webServer'], webCtx => registerGrokQuotaRoute(webCtx, quota))
   let capabilityIdentity: string | undefined
@@ -421,7 +399,7 @@ export function apply(ctx: Context, config: Config): void {
   const already = ctx.llm.listProviders().some(provider => provider.id === XAI_OAUTH_ROUTE)
   if (already) {
     // The old dsh-xai bundle still owns the route: leave it (its credential
-    // store is the same file) and keep the tools + proxy active.
+    // store is the same file) and keep the tools active.
     console.warn('dsh-grok-kit: the xai-oauth chat route is already registered by another bundle (dsh-xai still installed?). Keeping the existing registration. Nested grok_web_search / x_search stay available only when nestedSearchTools is on. Remove dsh-xai to let dsh-grok-kit own the route.')
   } else {
     ctx.llm.registerAdapter(
