@@ -340,34 +340,40 @@ export function applyGrokSearchTools(ctx: Context, options: GrokSearchToolOption
     presentResult: (args, result) => presentSearchResult(args.query, result),
   }))
 
-  ctx.tools.register(defineTool({
-    name: 'x_search',
-    description: 'Search X (Twitter) posts, accounts, and trends through Grok using your SuperGrok / X Premium subscription. Returns post URLs and an optional summary. Comparatively slow (about 10-45 seconds). Prefer allowed_x_handles and from_date / to_date over query operators.',
-    parameters: {
-      query: { type: 'string', required: true, description: 'The X search query, e.g. an account handle or topic.' },
-      allowed_x_handles: { type: 'array', items: { type: 'string' }, description: 'Optional X handles to search, without @ (max 20). Cannot be combined with excluded_x_handles.' },
-      excluded_x_handles: { type: 'array', items: { type: 'string' }, description: 'Optional X handles to exclude, without @ (max 20). Cannot be combined with allowed_x_handles.' },
-      enable_image_understanding: { type: 'boolean', description: 'When true, analyze images in matching posts.' },
-      enable_video_understanding: { type: 'boolean', description: 'When true, analyze videos in matching posts.' },
-      from_date: { type: 'string', description: 'Optional inclusive start date, YYYY-MM-DD.' },
-      to_date: { type: 'string', description: 'Optional inclusive end date, YYYY-MM-DD.' },
-    },
-    output: {
-      schema: SEARCH_OUTPUT_SCHEMA,
-      render: (_args, value) => [{ type: 'text', text: formatGrokSearchOutput(value as SearchResult) }],
-      presentationMeta: (_args, value) => searchMetaFromValue(value as SearchResult),
-    },
-    timeoutMs: options.xTimeoutMs,
-    isConcurrencySafe: () => true,
-    async execute(args, exec) {
-      const request = parseXSearchArgs(args)
-      const result = await options.x.search(request, exec.signal)
-      const capped = capSources(result, options.maxResults)
-      return { ...capped.content !== undefined ? { content: capped.content } : {}, sources: capped.sources.map(projectSearchSource), truncated: capped.truncated }
-    },
-    presentCall: (args) => presentSearchCall(args.query),
-    presentResult: (args, result) => presentSearchResult(args.query, result),
-  }))
+  // dsh-plugin-subscriptions also registers `x_search` (it aliases itself
+  // when it loses the race). When it wins, keep its tool and skip ours.
+  try {
+    ctx.tools.register(defineTool({
+      name: 'x_search',
+      description: 'Search X (Twitter) posts, accounts, and trends through Grok using your SuperGrok / X Premium subscription. Returns post URLs and an optional summary. Comparatively slow (about 10-45 seconds). Prefer allowed_x_handles and from_date / to_date over query operators.',
+      parameters: {
+        query: { type: 'string', required: true, description: 'The X search query, e.g. an account handle or topic.' },
+        allowed_x_handles: { type: 'array', items: { type: 'string' }, description: 'Optional X handles to search, without @ (max 20). Cannot be combined with excluded_x_handles.' },
+        excluded_x_handles: { type: 'array', items: { type: 'string' }, description: 'Optional X handles to exclude, without @ (max 20). Cannot be combined with allowed_x_handles.' },
+        enable_image_understanding: { type: 'boolean', description: 'When true, analyze images in matching posts.' },
+        enable_video_understanding: { type: 'boolean', description: 'When true, analyze videos in matching posts.' },
+        from_date: { type: 'string', description: 'Optional inclusive start date, YYYY-MM-DD.' },
+        to_date: { type: 'string', description: 'Optional inclusive end date, YYYY-MM-DD.' },
+      },
+      output: {
+        schema: SEARCH_OUTPUT_SCHEMA,
+        render: (_args, value) => [{ type: 'text', text: formatGrokSearchOutput(value as SearchResult) }],
+        presentationMeta: (_args, value) => searchMetaFromValue(value as SearchResult),
+      },
+      timeoutMs: options.xTimeoutMs,
+      isConcurrencySafe: () => true,
+      async execute(args, exec) {
+        const request = parseXSearchArgs(args)
+        const result = await options.x.search(request, exec.signal)
+        const capped = capSources(result, options.maxResults)
+        return { ...capped.content !== undefined ? { content: capped.content } : {}, sources: capped.sources.map(projectSearchSource), truncated: capped.truncated }
+      },
+      presentCall: (args) => presentSearchCall(args.query),
+      presentResult: (args, result) => presentSearchResult(args.query, result),
+    }))
+  } catch (error) {
+    console.warn(`dsh-grok-kit: x_search is already registered by another plugin; keeping that one (${error instanceof Error ? error.message : String(error)})`)
+  }
 }
 
 const REJECT_TOOL_DESCRIPTION = 'Do not call this tool. It exists only to complete an xAI server-side x_search custom_tool_call; the search already ran.'

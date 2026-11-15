@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { QuotaView } from './quota-view.tsx'
+import { XaiSettings } from './XaiSettings.tsx'
+import { SettingsDialog } from './SettingsDialog.tsx'
 import type { XaiOAuthSettingsKey } from './locales.ts'
 
 const STATUS_PATH = '/plugins/dsh-grok-kit/auth/status'
@@ -20,6 +22,7 @@ const button = {
 export function GrokModelsCard({ t }: { t: (key: XaiOAuthSettingsKey) => string }): ReactNode {
   const [status, setStatus] = useState<Status>({ status: 'loading' })
   const [open, setOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
       const response = await fetch(STATUS_PATH, { credentials: 'same-origin', headers: { accept: 'application/json' }, ...signal === undefined ? {} : { signal } })
@@ -52,17 +55,26 @@ export function GrokModelsCard({ t }: { t: (key: XaiOAuthSettingsKey) => string 
       </div>
       <div style={{ ...secondary, marginTop: 4 }}>{t('modelsCardPowered')}</div>
       {signedIn && <div style={{ fontSize: 13, marginTop: 12 }}>{visible} {t('modelsCardVisible')}</div>}
-      {signedIn && (
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          <button type="button" style={button} aria-expanded={open} onClick={() => { setOpen(!open) }}>{open ? t('modelsCardHideQuota') : t('modelsCardViewQuota')}</button>
-        </div>
-      )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+        {!signedIn && <button type="button" style={button} onClick={() => { setSettingsOpen(true) }}>{t('modelsCardSignIn')}</button>}
+        {signedIn && <button type="button" style={button} aria-expanded={open} onClick={() => { setOpen(!open) }}>{open ? t('modelsCardHideQuota') : t('modelsCardViewQuota')}</button>}
+        {signedIn && <button type="button" style={button} onClick={() => { setSettingsOpen(true) }}>{t('modelsCardManage')}</button>}
+      </div>
       {open && signedIn && (
         <div style={{ borderTop: '1px solid var(--dsw-alias-border-l2)', marginTop: 12, paddingTop: 12 }}>
           <QuotaView t={t} signedIn />
         </div>
       )}
-      <div style={{ ...secondary, marginTop: 12 }}>{t('modelsCardHelp')}</div>
+      <div style={{ ...secondary, marginTop: 12 }}>
+        {t('modelsCardHelp')}{' '}
+        <button type="button" onClick={() => { setSettingsOpen(true) }}
+          style={{ padding: 0, border: 0, background: 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer', textDecoration: 'underline' }}>{t('modelsCardMoreSettings')}</button>
+      </div>
+      {settingsOpen && (
+        <SettingsDialog title={t('modelsCardName')} closeLabel={t('modelsCardClose')} onClose={() => { setSettingsOpen(false); void load() }}>
+          <XaiSettings t={t} />
+        </SettingsDialog>
+      )}
     </div>
   )
 }

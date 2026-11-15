@@ -1,5 +1,12 @@
 # 更新记录 / Changelog
 
+## 0.2.15（2026-11-15）
+
+- 设置集中到“模型”页的 xAI Grok 卡片：登录、管理账号和“更多设置”对话框；移除单独的设置导航项。
+- 当其他插件（dsh-plugin-subscriptions）已注册 `x_search` 时跳过本插件的同名工具，避免启动失败。
+- Settings live in the xAI Grok card on the Models page: sign-in, account management and a More settings dialog; the separate settings nav entry is removed.
+- Skip this plugin's `x_search` when another plugin (dsh-plugin-subscriptions) already registered one, instead of failing.
+
 ## 0.2.14（2026-11-15）
 
 - 在“模型”设置页加入 xAI Grok 卡片（`settings.models.footer`）：登录状态、可见模型数量和配额。

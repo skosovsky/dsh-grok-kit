@@ -266,7 +266,11 @@ export const en = {
   modelsCardVisible: 'visible models',
   modelsCardViewQuota: 'View quota',
   modelsCardHideQuota: 'Hide quota',
-  modelsCardHelp: 'Sign-in, model visibility, search and media options are in Settings → xAI Grok.',
+  modelsCardHelp: 'Model visibility, search, media and proxy options:',
+  modelsCardSignIn: 'Sign in',
+  modelsCardManage: 'Manage account',
+  modelsCardMoreSettings: 'More settings',
+  modelsCardClose: 'Close',
 }
 
 export type XaiOAuthSettingsKey = keyof typeof en
@@ -530,5 +534,9 @@ export const zh: { [Key in XaiOAuthSettingsKey]: string } = {
   modelsCardVisible: '个可见模型',
   modelsCardViewQuota: '查看配额',
   modelsCardHideQuota: '收起配额',
-  modelsCardHelp: '登录、模型可见性、搜索和媒体选项位于 设置 → xAI Grok。',
+  modelsCardHelp: '模型可见性、搜索、媒体和代理选项：',
+  modelsCardSignIn: '登录',
+  modelsCardManage: '管理账号',
+  modelsCardMoreSettings: '更多设置',
+  modelsCardClose: '关闭',
 }

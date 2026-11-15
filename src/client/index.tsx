@@ -17,7 +17,6 @@ import { GrokModelsCard } from './models-card.tsx'
 import type { XaiOAuthSettingsInjected } from './XaiSettings.tsx'
 import { en, zh } from './locales.ts'
 import type { XaiOAuthSettingsKey } from './locales.ts'
-import { registerSettingsNavIcon } from './nav-icon.ts'
 import { applyImagineViews } from './imagine-view.tsx'
 import { applyVideoViews } from './video-view.tsx'
 
@@ -66,21 +65,6 @@ export function apply(ctx: Context): void {
     }
   }, 'dsh-grok-kit: settings copy')
   const t = ctx.locale.bind(namespace) as XaiOAuthSettingsInjected['t']
-  ctx.slots.inject('settings.section', () => {
-    const existing = ctx.slots.entries('settings.section').some(entry => (entry as { id?: string }).id === 'xai-oauth')
-    if (existing) {
-      console.warn('dsh-grok-kit: settings section slot already registered; keeping the existing entry.')
-      return () => undefined
-    }
-    return ctx.slots.register({
-      name: 'settings.section',
-      id: 'xai-oauth',
-      order: 16,
-      label: () => t('nav'),
-      inject: (): XaiOAuthSettingsInjected => ({ t }),
-    }, XaiSettings)
-  })
-
   // A card on the Models page next to the built-in provider rows (the
   // `settings.models.footer` seat of dsh-client-ui-settings-models).
   ctx.slots.inject('settings.models.footer', () => ctx.slots.register({
@@ -89,8 +73,6 @@ export function apply(ctx: Context): void {
     order: 115,
     inject: () => ({ t }),
   }, GrokModelsCard))
-
-  registerSettingsNavIcon(ctx)
 
   // Session image views for grok_imagine / grok_imagine_edit, merged from
   // the former dsh-grok-imagine-ui companion plugin.
