@@ -75,3 +75,6 @@ jobs:
 
       - name: Host compat probe (dsh-llm-pi-ai 0.2.0-rc.2)
         run: node scripts/verify-host-compat.mjs 0.2.0-rc.2
+
+      - name: Host compat probe (dsh-llm-pi-ai 0.2.2-rc.3 / pi-ai 1.3.0)
+        run: node scripts/verify-host-compat.mjs 0.2.2-rc.3

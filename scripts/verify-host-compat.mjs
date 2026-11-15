@@ -22,11 +22,15 @@ import { fileURLToPath } from 'node:url'
 
 const HOST_SETS = {
   '0.2.0-rc.2': { dsh: '0.2.0-rc.2', piAi: '0.87.1', schemastery: '3.18.4', cordis: '4.0.4' },
+  // Official Desktop 0.2.2-rc.3 ships pi-ai 1.3.0, cordis 4.1.0, schemastery 3.19.0.
+  '0.2.2-rc.3': { dsh: '0.2.2-rc.3', piAi: '1.3.0', schemastery: '3.19.0', cordis: '4.1.0' },
 }
 // Components absent from a given host line (renamed/absorbed upstream) are
 // excluded from that leg's frozen fixture; everything else stays pinned.
 const FIXTURE_EXCLUSIONS = {
   '0.2.0-rc.2': ['dsh-code-runtime'],
+  // dsh-invariants was retired after 0.2.0-rc.2; rc.3 hosts ship no invariants service.
+  '0.2.2-rc.3': ['dsh-code-runtime', 'dsh-invariants'],
 }
 // Test-fixture freeze: every @deepseek-ai host component the probe tree can
 // pull (explicit installs plus the required peers npm auto-installs) is
