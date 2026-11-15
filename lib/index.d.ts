@@ -361,7 +361,6 @@ declare const XAI_OAUTH_AUTH_LOGIN_PATH = "/plugins/dsh-grok-kit/auth/login";
 declare const XAI_OAUTH_AUTH_IMPORT_PATH = "/plugins/dsh-grok-kit/auth/import";
 declare const XAI_OAUTH_AUTH_LOGOUT_PATH = "/plugins/dsh-grok-kit/auth/logout";
 declare const XAI_OAUTH_AUTH_MODELS_PATH = "/plugins/dsh-grok-kit/auth/models";
-declare const XAI_OAUTH_AUTH_PROXY_PATH = "/plugins/dsh-grok-kit/auth/proxy";
 declare const XAI_OAUTH_AUTH_OPTIONS_PATH = "/plugins/dsh-grok-kit/auth/options";
 type XaiOAuthWebAuthStatus = {
   status: 'signed-out';
@@ -395,7 +394,7 @@ interface LoginChallenge {
   userCode?: string;
 }
 /** Register the plugin-owned OAuth routes when the Web server is composed. */
-declare function registerXaiOAuthAuthRoutes(ctx: Context, session: XaiOAuthSession, cordisConfig?: Record<string, unknown>, onAccountChange?: () => void, onNetworkChange?: () => void): void;
+declare function registerXaiOAuthAuthRoutes(ctx: Context, session: XaiOAuthSession, cordisConfig?: Record<string, unknown>, onAccountChange?: () => void, _onNetworkChange?: () => void): void;
 //#endregion
 //#region src/grok-import.d.ts
 /** Same client id pi-ai / Grok CLI use for the device-code grant. */
@@ -622,37 +621,6 @@ declare function runImageEdit(options: RunImageEditOptions): Promise<EditSaveRes
 //#region src/redact.d.ts
 /** Remove token-like strings from an external OAuth diagnostic. */
 declare function safeMessage(error: unknown): string;
-//#endregion
-//#region src/proxy.d.ts
-/** Absolute path of the plugin-owned proxy setting file. */
-declare function xaiProxyPath(dshHome?: string): string;
-declare function readStoredProxyUrl(): string;
-/** Legacy URL-only callers must not silently reset the compatibility choice. */
-declare function writeStoredProxyUrl(url: string): Promise<void>;
-/**
- * Point the xAI-only hook at a proxy URL; '' clears it (xAI goes direct too).
- * Invalid URLs are rejected and never throw — the plugin must not crash on a
- * bad stored/env value. Returns true when the value was applied.
- */
-declare function setXaiProxyUrl(url: string): boolean;
-/**
- * Install a transparent global-fetch hook that routes x.ai origins, the
- * exact official Grok billing host, and the exact GetGrokCreditsConfig path
- * through this plugin's ProxyAgent; every other request goes to the
- * original fetch untouched. Reference counted: every install returns its
- * OWN idempotent disposer, and the original fetch is restored only after
- * the LAST owner releases — and only if our wrapper is still installed
- * (a later component that replaced fetch after us is never clobbered).
- */
-declare function installXaiFetchHook(): () => void;
-/** Effective proxy URL: stored > config > env. Invalid/userinfo values resolve to ''. */
-declare function resolveXaiProxyUrl(configUrl?: string): string;
-/**
- * Apply the effective proxy URL (stored > config > env) to the already
- * installed hook. Callers own the hook lifecycle via installXaiFetchHook().
- * Returns the effective URL, '' when unset/invalid.
- */
-declare function applyXaiProxy(configUrl?: string): string;
 //#endregion
 //#region src/search.d.ts
 declare const XAI_SEARCH_TOOLS: readonly ["web_search", "x_search"];
@@ -982,8 +950,6 @@ declare const name = "dsh-grok-kit";
 /** LLM registry required before the subscription route can register. */
 declare const inject: string[];
 interface Config {
-  /** Optional outbound HTTP/HTTPS proxy for xAI traffic, e.g. http://127.0.0.1:8080; '' = stored/env default. */
-  proxyUrl?: string;
   /** Model used for nested xAI search. Defaults to grok-build-0.1. */
   searchModel?: string;
   /** Upper bound on sources returned by one search call. Defaults to 8. */
@@ -1041,4 +1007,4 @@ declare function resolveStatefulResponses(config: Config): boolean;
 /** Register the xai-oauth LLM route, OAuth routes, Imagine, and search wiring. */
 declare function apply(ctx: Context, config: Config): void;
 //#endregion
-export { type CapabilityFeatureState, type CapabilityObservation, type CapabilitySnapshot, CapabilityTracker, type CatalogSource, Config, DEFAULT_EDIT_MODEL, DEFAULT_IMAGINE_MODEL, DEFAULT_SEARCH_MAX_RESULTS, DEFAULT_VIDEO_MAX_BYTES, DEFAULT_VIDEO_MODEL, DEFAULT_WEB_SEARCH_TIMEOUT_MS, DEFAULT_XAI_OAUTH_MODEL, DEFAULT_XAI_SEARCH_MODEL, DEFAULT_X_SEARCH_TIMEOUT_MS, MAX_N as EDIT_MAX_N, type EffectivePluginOptions, GROK_46_MODEL, GROK_VIDEO_FILE_PATH, GROK_XAI_CLIENT_ID, GROK_XAI_SLOT_KEY, type GrokImportProbe, type LoginChallenge, type OptionValueSource, PREFERRED_XAI_OAUTH_MODEL, type PresentedPluginOptions, type ResponseChainRecord, type ResponseChainStore, type SearchRequest, type SearchResult, type SearchSource, type StoredPluginOptions, type VideoSourceContext, VideoTaskManager, type VideoTaskManagerOptions, type VideoTaskResult, type VideoTaskState, XAI_BUILTIN_SEARCH_FUNCTION_NAMES, XAI_IMAGES_EDIT_URL, XAI_IMAGES_URL, XAI_MODELS_URL, XAI_OAUTH_AUTH_FILENAME, XAI_OAUTH_AUTH_IMPORT_PATH, XAI_OAUTH_AUTH_LOGIN_PATH, XAI_OAUTH_AUTH_LOGOUT_PATH, XAI_OAUTH_AUTH_MODELS_PATH, XAI_OAUTH_AUTH_OPTIONS_PATH, XAI_OAUTH_AUTH_PROXY_PATH, XAI_OAUTH_AUTH_STATUS_PATH, XAI_OAUTH_ROUTE, XAI_OAUTH_STREAM_IDLE_TIMEOUT_MS, XAI_PI_PROVIDER, XAI_RESPONSES_URL, XAI_SERVER_X_SEARCH_REJECT_NAMES, type XaiOAuthAuthStatus, XaiOAuthCredentialStore, XaiOAuthSearchError, XaiOAuthSearchProvider, XaiOAuthSession, type XaiOAuthTokenSource, type XaiOAuthWebAuthStatus, type XaiResponsesWrapOptions, type XaiSearchTool, alignExtension, apply, applyGrokImagineEditTool, applyGrokImagineTool, applyGrokSearchTools, applyGrokVideoTools, applyStatefulContinuation, applyXaiProxy, applyXaiResponsesPayload, applyXaiServerSearchRejectTools, breakStaleWriterLock, buildEditRequestBody, buildSearchToolPayload, capSources, catalogModels, clientInputDelta, createFileResponseChainStore, createMemoryResponseChainStore, createXaiOAuthAdapter, createXaiOAuthSearchTokenSource, decodeFirstImage, extensionFor as editExtensionFor, extractClientInputItems, extractModelIds, fetchLiveModelIds, filterSelectedChatModelIds, fingerprintInputItem, formatGrokSearchOutput, grokAuthPath, imagineModelId, importGrokAuth, importXaiOAuthFromGrok, importXaiOAuthSession, includeForSearchTool, inject, installXaiFetchHook, isClientOriginatedInputItem, isComposerChatModel, isGrokAuthDocument, isGrokAuthPath, isPidAlive, isPreviousResponseError, isToolOutputInputItem, isUserInputItem, lockPathForAuthFile, loginXaiOAuth, loginXaiOAuthSession, logoutXaiOAuth, mapXaiSearchResponse, materializeLiveModel, mergeLiveCatalog, mergePluginOptions, name, normalizeDataImageUri, optionsPath, parseAttachmentSpec, parseGrokAuthDocument, parseGrokWebSearchArgs, parseLockPid, parseXSearchArgs, preferredXaiOAuthModel, preferredXaiOAuthModelFrom, presentPluginOptions, probeGrokAuth, readStoredOptions, readStoredProxyUrl, registerGrokCapabilityRoutes, registerGrokVideoFileRoute, registerXaiOAuthAuthRoutes, removeGrokAuthSlot, resolveImageSources, resolveNestedSearchTools, resolveStatefulResponses, resolveXaiOAuthStorePath, resolveXaiProxyUrl, runImageEdit, safeDetail, safeMessage, sanitizeRejectToolEvent, sanitizeStoredOptions, setXaiProxyUrl, sniffEditableImageMediaType, sniffImageMediaType, stripRejectToolCalls, wrapXaiResponsesProvider, writeGrokAuthDocument, writeStoredOptions, writeStoredProxyUrl, xaiOAuthAuthPath, xaiOAuthAuthStatus, xaiProxyPath };
+export { type CapabilityFeatureState, type CapabilityObservation, type CapabilitySnapshot, CapabilityTracker, type CatalogSource, Config, DEFAULT_EDIT_MODEL, DEFAULT_IMAGINE_MODEL, DEFAULT_SEARCH_MAX_RESULTS, DEFAULT_VIDEO_MAX_BYTES, DEFAULT_VIDEO_MODEL, DEFAULT_WEB_SEARCH_TIMEOUT_MS, DEFAULT_XAI_OAUTH_MODEL, DEFAULT_XAI_SEARCH_MODEL, DEFAULT_X_SEARCH_TIMEOUT_MS, MAX_N as EDIT_MAX_N, type EffectivePluginOptions, GROK_46_MODEL, GROK_VIDEO_FILE_PATH, GROK_XAI_CLIENT_ID, GROK_XAI_SLOT_KEY, type GrokImportProbe, type LoginChallenge, type OptionValueSource, PREFERRED_XAI_OAUTH_MODEL, type PresentedPluginOptions, type ResponseChainRecord, type ResponseChainStore, type SearchRequest, type SearchResult, type SearchSource, type StoredPluginOptions, type VideoSourceContext, VideoTaskManager, type VideoTaskManagerOptions, type VideoTaskResult, type VideoTaskState, XAI_BUILTIN_SEARCH_FUNCTION_NAMES, XAI_IMAGES_EDIT_URL, XAI_IMAGES_URL, XAI_MODELS_URL, XAI_OAUTH_AUTH_FILENAME, XAI_OAUTH_AUTH_IMPORT_PATH, XAI_OAUTH_AUTH_LOGIN_PATH, XAI_OAUTH_AUTH_LOGOUT_PATH, XAI_OAUTH_AUTH_MODELS_PATH, XAI_OAUTH_AUTH_OPTIONS_PATH, XAI_OAUTH_AUTH_STATUS_PATH, XAI_OAUTH_ROUTE, XAI_OAUTH_STREAM_IDLE_TIMEOUT_MS, XAI_PI_PROVIDER, XAI_RESPONSES_URL, XAI_SERVER_X_SEARCH_REJECT_NAMES, type XaiOAuthAuthStatus, XaiOAuthCredentialStore, XaiOAuthSearchError, XaiOAuthSearchProvider, XaiOAuthSession, type XaiOAuthTokenSource, type XaiOAuthWebAuthStatus, type XaiResponsesWrapOptions, type XaiSearchTool, alignExtension, apply, applyGrokImagineEditTool, applyGrokImagineTool, applyGrokSearchTools, applyGrokVideoTools, applyStatefulContinuation, applyXaiResponsesPayload, applyXaiServerSearchRejectTools, breakStaleWriterLock, buildEditRequestBody, buildSearchToolPayload, capSources, catalogModels, clientInputDelta, createFileResponseChainStore, createMemoryResponseChainStore, createXaiOAuthAdapter, createXaiOAuthSearchTokenSource, decodeFirstImage, extensionFor as editExtensionFor, extractClientInputItems, extractModelIds, fetchLiveModelIds, filterSelectedChatModelIds, fingerprintInputItem, formatGrokSearchOutput, grokAuthPath, imagineModelId, importGrokAuth, importXaiOAuthFromGrok, importXaiOAuthSession, includeForSearchTool, inject, isClientOriginatedInputItem, isComposerChatModel, isGrokAuthDocument, isGrokAuthPath, isPidAlive, isPreviousResponseError, isToolOutputInputItem, isUserInputItem, lockPathForAuthFile, loginXaiOAuth, loginXaiOAuthSession, logoutXaiOAuth, mapXaiSearchResponse, materializeLiveModel, mergeLiveCatalog, mergePluginOptions, name, normalizeDataImageUri, optionsPath, parseAttachmentSpec, parseGrokAuthDocument, parseGrokWebSearchArgs, parseLockPid, parseXSearchArgs, preferredXaiOAuthModel, preferredXaiOAuthModelFrom, presentPluginOptions, probeGrokAuth, readStoredOptions, registerGrokCapabilityRoutes, registerGrokVideoFileRoute, registerXaiOAuthAuthRoutes, removeGrokAuthSlot, resolveImageSources, resolveNestedSearchTools, resolveStatefulResponses, resolveXaiOAuthStorePath, runImageEdit, safeDetail, safeMessage, sanitizeRejectToolEvent, sanitizeStoredOptions, sniffEditableImageMediaType, sniffImageMediaType, stripRejectToolCalls, wrapXaiResponsesProvider, writeGrokAuthDocument, writeStoredOptions, xaiOAuthAuthPath, xaiOAuthAuthStatus };

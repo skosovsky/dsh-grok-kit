@@ -2,6 +2,11 @@
 
 ## 0.2.17（2026-11-16）
 
+- 移除插件自带的 xAI 代理设置：删除代理模块、`/auth/proxy` 路由、`proxyUrl` 配置、`DSH_XAI_PROXY` 以及设置页的“网络”标签；xAI 请求改走宿主网络（如需代理，在宿主层设置 `HTTPS_PROXY` 等）。
+- Remove the plugin's own xAI proxy: the proxy module, the `/auth/proxy` route, the `proxyUrl` config, `DSH_XAI_PROXY`, and the Network settings tab are gone; xAI requests follow the host network (set `HTTPS_PROXY` etc. at the host level for a proxy).
+
+## 0.2.17（2026-11-16）
+
 - 移除插件自带的代理支持：网络页、`proxyUrl` 配置、`DSH_XAI_PROXY`、全局 fetch 钩子和配额兼容传输。xAI 请求走宿主网络。
 - Remove the plugin's own proxy support: the Network page, the `proxyUrl` config, `DSH_XAI_PROXY`, the global fetch hook and the quota compatibility transport. xAI requests use the host network.
 
