@@ -1,5 +1,10 @@
 # 更新记录 / Changelog
 
+## 0.2.14（2026-11-15）
+
+- 在“模型”设置页加入 xAI Grok 卡片（`settings.models.footer`）：登录状态、可见模型数量和配额。
+- Add an xAI Grok card to the Models settings page (`settings.models.footer`): sign-in status, visible model count and quota.
+
 ## 0.2.12（2026-11-12）
 
 - 更新 Vitest 与 fast-uri，并为三个开发工具依赖定向覆盖 minimatch 11.0.5，修复开发依赖安全问题。运行依赖与功能行为不变。

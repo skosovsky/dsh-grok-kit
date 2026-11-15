@@ -13,6 +13,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import { XaiSettings } from './XaiSettings.tsx'
+import { GrokModelsCard } from './models-card.tsx'
 import type { XaiOAuthSettingsInjected } from './XaiSettings.tsx'
 import { en, zh } from './locales.ts'
 import type { XaiOAuthSettingsKey } from './locales.ts'
@@ -79,6 +80,15 @@ export function apply(ctx: Context): void {
       inject: (): XaiOAuthSettingsInjected => ({ t }),
     }, XaiSettings)
   })
+
+  // A card on the Models page next to the built-in provider rows (the
+  // `settings.models.footer` seat of dsh-client-ui-settings-models).
+  ctx.slots.inject('settings.models.footer', () => ctx.slots.register({
+    name: 'settings.models.footer',
+    id: 'dsh-grok-kit-account',
+    order: 115,
+    inject: () => ({ t }),
+  }, GrokModelsCard))
 
   registerSettingsNavIcon(ctx)
 

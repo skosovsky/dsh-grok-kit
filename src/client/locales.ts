@@ -261,6 +261,12 @@ export const en = {
   imageUiEditSourcesFallback: 'reuse all input images (image and images) from the previous grok_imagine_edit call',
   imageUiEditSettings: '. Keep the parameters: ',
   imageUiEditKeepPrompt: '. Do not rewrite the prompt:',
+  modelsCardName: 'xAI Grok',
+  modelsCardPowered: 'Powered by the Grok Kit plugin.',
+  modelsCardVisible: 'visible models',
+  modelsCardViewQuota: 'View quota',
+  modelsCardHideQuota: 'Hide quota',
+  modelsCardHelp: 'Sign-in, model visibility, search and media options are in Settings → xAI Grok.',
 }
 
 export type XaiOAuthSettingsKey = keyof typeof en
@@ -519,4 +525,10 @@ export const zh: { [Key in XaiOAuthSettingsKey]: string } = {
   imageUiEditSourcesFallback: '输入图沿用上一条 grok_imagine_edit 调用的全部图片（image 和 images）',
   imageUiEditSettings: '。参数沿用：',
   imageUiEditKeepPrompt: '。不要改写提示词：',
+  modelsCardName: 'xAI Grok',
+  modelsCardPowered: '由 Grok Kit 插件提供。',
+  modelsCardVisible: '个可见模型',
+  modelsCardViewQuota: '查看配额',
+  modelsCardHideQuota: '收起配额',
+  modelsCardHelp: '登录、模型可见性、搜索和媒体选项位于 设置 → xAI Grok。',
 }
