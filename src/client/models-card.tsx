@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { QuotaView } from './quota-view.tsx'
 import { XaiSettings } from './XaiSettings.tsx'
-import { SettingsDialog } from './SettingsDialog.tsx'
+import { InlineSettings } from './InlineSettings.tsx'
 import type { XaiOAuthSettingsKey } from './locales.ts'
 
 const STATUS_PATH = '/plugins/dsh-grok-kit/auth/status'
@@ -67,13 +67,15 @@ export function GrokModelsCard({ t }: { t: (key: XaiOAuthSettingsKey) => string 
       )}
       <div style={{ ...secondary, marginTop: 12 }}>
         {t('modelsCardHelp')}{' '}
-        <button type="button" onClick={() => { setSettingsOpen(true) }}
-          style={{ padding: 0, border: 0, background: 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer', textDecoration: 'underline' }}>{t('modelsCardMoreSettings')}</button>
+        <button type="button" aria-expanded={settingsOpen} onClick={() => { setSettingsOpen(!settingsOpen) }}
+          style={{ padding: 0, border: 0, background: 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer', textDecoration: 'underline' }}>{settingsOpen ? t('modelsCardClose') : t('modelsCardMoreSettings')}</button>
       </div>
       {settingsOpen && (
-        <SettingsDialog title={t('modelsCardName')} closeLabel={t('modelsCardClose')} onClose={() => { setSettingsOpen(false); void load() }}>
+        <InlineSettings className="gk-inline">
+          {/* The section's sticky footer is built for the full settings pane; inside a card it stays in flow. */}
+          <style>{'.gk-inline .grok-settings { max-width: none; } .gk-inline .grok-settings .gk-footer { position: static; margin: 0; padding-bottom: 0; }'}</style>
           <XaiSettings t={t} />
-        </SettingsDialog>
+        </InlineSettings>
       )}
     </div>
   )

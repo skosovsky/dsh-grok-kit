@@ -270,7 +270,7 @@ export const en = {
   modelsCardSignIn: 'Sign in',
   modelsCardManage: 'Manage account',
   modelsCardMoreSettings: 'More settings',
-  modelsCardClose: 'Close',
+  modelsCardClose: 'Hide settings',
 }
 
 export type XaiOAuthSettingsKey = keyof typeof en
@@ -538,5 +538,5 @@ export const zh: { [Key in XaiOAuthSettingsKey]: string } = {
   modelsCardSignIn: '登录',
   modelsCardManage: '管理账号',
   modelsCardMoreSettings: '更多设置',
-  modelsCardClose: '关闭',
+  modelsCardClose: '收起设置',
 }

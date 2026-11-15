@@ -1,5 +1,10 @@
 # 更新记录 / Changelog
 
+## 0.2.16（2026-11-15）
+
+- “更多设置”在模型卡片内展开，不再使用模态对话框；嵌入时页脚不再吸附，避免超出卡片。
+- "More settings" expands inside the Models card instead of a modal dialog; the footer no longer sticks when embedded, so nothing overflows the card.
+
 ## 0.2.15（2026-11-15）
 
 - 设置集中到“模型”页的 xAI Grok 卡片：登录、管理账号和“更多设置”对话框；移除单独的设置导航项。
