@@ -8,6 +8,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { AttachmentStore, ImageAttachmentRef, ImageMediaType } from '@deepseek-ai/dsh-attachment'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { fetchWithBearer } from './bearer-guard.ts'
+import { GROK_WIRE_USER_AGENT as USER_AGENT } from './user-agent.ts'
 import type { XaiOAuthSession } from './session.ts'
 import type { XaiOAuthTokenSource } from './token-source.ts'
 import { safeMessage } from './redact.ts'
@@ -16,7 +17,6 @@ import { assertMediaEnabled } from './media-options.ts'
 export const XAI_IMAGES_URL = 'https://api.x.ai/v1/images/generations'
 export const DEFAULT_IMAGINE_MODEL = 'grok-imagine-image-2.0'
 const FALLBACK_IMAGINE_MODEL = 'grok-imagine-image'
-const USER_AGENT = 'dsh-grok-kit/0.2.12'
 /** v1 renders exactly one image per call (the API bills per n). */
 const MAX_N = 1
 

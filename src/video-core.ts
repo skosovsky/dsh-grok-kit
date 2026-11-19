@@ -28,6 +28,7 @@ import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import type { AttachmentStore, FileAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { fetchWithBearer } from './bearer-guard.ts'
+import { GROK_WIRE_USER_AGENT } from './user-agent.ts'
 import type { XaiOAuthTokenSource } from './token-source.ts'
 import { safeMessage } from './redact.ts'
 import { sanitizeDiagnosticMessage } from './capabilities.ts'
@@ -536,7 +537,7 @@ export class VideoTaskManager {
         headers: {
           'content-type': 'application/json',
           accept: 'application/json',
-          'user-agent': 'dsh-grok-kit/0.2.12',
+          'user-agent': GROK_WIRE_USER_AGENT,
         },
         body: JSON.stringify(body),
         signal: timed.signal,
@@ -852,7 +853,7 @@ export class VideoTaskManager {
         redirect: 'error',
         headers: {
           accept: 'application/json',
-          'user-agent': 'dsh-grok-kit/0.2.12',
+          'user-agent': GROK_WIRE_USER_AGENT,
         },
         signal: pollTimed.signal,
       })
@@ -987,7 +988,7 @@ export class VideoTaskManager {
       const response = await this.fetchImpl(remoteUrl, {
         method: 'GET',
         redirect: 'error',
-        headers: { accept: 'video/mp4', 'user-agent': 'dsh-grok-kit/0.2.12' },
+        headers: { accept: 'video/mp4', 'user-agent': GROK_WIRE_USER_AGENT },
         signal: timed.signal,
       })
       if (!response.ok) {

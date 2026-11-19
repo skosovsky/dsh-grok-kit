@@ -12,6 +12,7 @@
 
 import { extname } from 'node:path'
 import { fetchWithBearer } from './bearer-guard.ts'
+import { GROK_WIRE_USER_AGENT } from './user-agent.ts'
 import type { XaiOAuthTokenSource } from './token-source.ts'
 import { safeMessage } from './redact.ts'
 
@@ -427,7 +428,7 @@ export async function runImageEdit(options: RunImageEditOptions): Promise<EditSa
     headers: {
       'content-type': 'application/json',
       accept: 'application/json',
-      'user-agent': 'dsh-grok-kit/0.2.12',
+      'user-agent': GROK_WIRE_USER_AGENT,
     },
     body: JSON.stringify(body),
     ...signal === undefined ? {} : { signal },
