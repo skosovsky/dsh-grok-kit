@@ -127,7 +127,7 @@ import * as React from 'react'
 import { XaiSettings } from '../src/client/XaiSettings.tsx'
 import { CapabilitiesView } from '../src/client/capabilities-view.tsx'
 import { QuotaView } from '../src/client/quota-view.tsx'
-import { en, zh } from '../src/client/locales.ts'
+import { en } from '../src/client/locales.ts'
 
 interface FakeElement {
   type: unknown
